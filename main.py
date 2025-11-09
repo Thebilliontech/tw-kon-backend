@@ -27,10 +27,30 @@ class TradeResponse(BaseModel):
     take_profit: float
     quantity: int
 
+@app.get("/")
+def root():
+    return {"message": "TW-KON Backend API is running", "status": "healthy"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "service": "tw-kon-backend"}
+
 @app.post("/api/trade", response_model=TradeResponse)
 def trade_endpoint(request: TradeRequest):
-    trade = generate_trade_signal(request.symbol.upper(), request.account_size)
-    if not trade:
+    try:
+        trade = generate_trade_signal(request.symbol.upper(), request.account_size)
+        if not trade:
+            return {
+                "symbol": request.symbol,
+                "direction": "hold",
+                "entry_price": 0.0,
+                "stop_loss": 0.0,
+                "take_profit": 0.0,
+                "quantity": 0
+            }
+        return trade
+    except ValueError as e:
+        # Return a hold signal if Alpaca is not configured
         return {
             "symbol": request.symbol,
             "direction": "hold",
@@ -39,4 +59,13 @@ def trade_endpoint(request: TradeRequest):
             "take_profit": 0.0,
             "quantity": 0
         }
-    return trade
+    except Exception as e:
+        # Return a hold signal on any other error
+        return {
+            "symbol": request.symbol,
+            "direction": "hold",
+            "entry_price": 0.0,
+            "stop_loss": 0.0,
+            "take_profit": 0.0,
+            "quantity": 0
+        }
